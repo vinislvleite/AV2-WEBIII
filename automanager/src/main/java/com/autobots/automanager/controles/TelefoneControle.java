@@ -1,47 +1,65 @@
 package com.autobots.automanager.controles;
 
 import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.autobots.automanager.entidades.Telefone;
+import com.autobots.automanager.modelo.AdicionadorLinkTelefone;
 import com.autobots.automanager.servicos.TelefoneServico;
 
 @RestController
-@RequestMapping("/telefone")
+@RequestMapping("/cliente/{clienteId}/telefone")
 public class TelefoneControle {
 
     @Autowired
     private TelefoneServico servico;
 
-    @GetMapping("/{id}")
-    public Telefone obterTelefone(@PathVariable Long id) {
-        return servico.obterPorId(id);
-    }
+    @Autowired
+    private AdicionadorLinkTelefone adicionadorLink;
 
     @GetMapping
-    public List<Telefone> listarTelefones() {
-        return servico.listarTodos();
+    public ResponseEntity<List<Telefone>> listar(@PathVariable Long clienteId) {
+        List<Telefone> telefones = servico.listarPorCliente(clienteId);
+        if (!telefones.isEmpty()) {
+            telefones.forEach(tel -> tel.setClienteId(clienteId));
+            adicionadorLink.adicionarLink(telefones);
+        }
+        return ResponseEntity.ok(telefones);
     }
 
-    @PostMapping("/cadastro")
-    public ResponseEntity<String> cadastrarTelefone(@RequestBody Telefone telefone) {
-        servico.cadastrar(telefone);
-        return new ResponseEntity<>("Telefone cadastrado", HttpStatus.CREATED);
+    @GetMapping("/{id}")
+    public ResponseEntity<Telefone> obter(@PathVariable Long clienteId, @PathVariable Long id) {
+        Telefone tel = servico.obterPorId(id);
+        if (tel == null || !servico.listarPorCliente(clienteId).contains(tel)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        tel.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(tel);
+        return ResponseEntity.ok(tel);
     }
 
-    @PutMapping("/atualizar")
-    public ResponseEntity<String> atualizarTelefone(@RequestBody Telefone atualizacao) {
-        servico.atualizar(atualizacao);
-        return new ResponseEntity<>("Telefone atualizado", HttpStatus.OK);
+    @PostMapping
+    public ResponseEntity<Telefone> cadastrar(@PathVariable Long clienteId, @RequestBody Telefone telefone) {
+        Telefone novo = servico.cadastrar(clienteId, telefone);
+        novo.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(novo);
+        return ResponseEntity.status(201).body(novo);
     }
 
-    @DeleteMapping("/excluir")
-    public ResponseEntity<String> excluirTelefone(@RequestBody Telefone exclusao) {
-        servico.deletar(exclusao.getId());
-        return new ResponseEntity<>("Telefone excluído", HttpStatus.OK);
+    @PutMapping("/{id}")
+    public ResponseEntity<Telefone> atualizar(@PathVariable Long clienteId, @PathVariable Long id, @RequestBody Telefone telefone) {
+        Telefone atualizado = servico.atualizar(id, telefone);
+        atualizado.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(atualizado);
+        return ResponseEntity.ok(atualizado);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        servico.deletar(id);
+        return ResponseEntity.noContent().build();
     }
 }

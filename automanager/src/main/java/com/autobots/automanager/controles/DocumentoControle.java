@@ -3,45 +3,75 @@ package com.autobots.automanager.controles;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.autobots.automanager.entidades.Documento;
+import com.autobots.automanager.modelo.AdicionadorLinkDocumento;
 import com.autobots.automanager.servicos.DocumentoServico;
 
 @RestController
-@RequestMapping("/documento")
+@RequestMapping("/cliente/{clienteId}/documento")
 public class DocumentoControle {
 
     @Autowired
     private DocumentoServico servico;
 
-    @GetMapping("/{id}")
-    public Documento obterDocumento(@PathVariable Long id) {
-        return servico.obterPorId(id);
-    }
+    @Autowired
+    private AdicionadorLinkDocumento adicionadorLink;
 
     @GetMapping
-    public List<Documento> listarDocumentos() {
-        return servico.listarTodos();
+    public ResponseEntity<List<Documento>> listar(@PathVariable Long clienteId) {
+        List<Documento> documentos = servico.listarPorCliente(clienteId);
+        if (!documentos.isEmpty()) {
+            for (Documento doc : documentos) {
+                doc.setClienteId(clienteId);
+            }
+            adicionadorLink.adicionarLink(documentos);
+        }
+        return ResponseEntity.ok(documentos);
     }
 
-    @PostMapping("/cadastro")
-    public ResponseEntity<String> cadastrarDocumento(@RequestBody Documento documento) {
-        servico.cadastrar(documento);
-        return new ResponseEntity<>("Documento cadastrado", HttpStatus.CREATED);
+    @GetMapping("/{id}")
+    public ResponseEntity<Documento> obter(
+            @PathVariable Long clienteId,
+            @PathVariable Long id) {
+
+        Documento doc = servico.obterPorId(id);
+
+        if (doc == null || !servico.listarPorCliente(clienteId).contains(doc)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        doc.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(doc);
+        return ResponseEntity.ok(doc);
     }
 
-    @PutMapping("/atualizar")
-    public ResponseEntity<String> atualizarDocumento(@RequestBody Documento documento) {
-        servico.atualizar(documento);
-        return new ResponseEntity<>("Documento atualizado", HttpStatus.OK);
+    @PostMapping
+    public ResponseEntity<Documento> cadastrar(@PathVariable Long clienteId, @RequestBody Documento documento) {
+        Documento salvo = servico.cadastrar(clienteId, documento);
+        salvo.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(salvo);
+        return ResponseEntity.status(201).body(salvo);
     }
 
-    @DeleteMapping("/excluir")
-    public ResponseEntity<String> excluirDocumento(@RequestBody Documento documento) {
-        servico.deletar(documento.getId());
-        return new ResponseEntity<>("Documento excluído", HttpStatus.OK);
+    @PutMapping("/{id}")
+    public ResponseEntity<Documento> atualizar(
+            @PathVariable Long clienteId,
+            @PathVariable Long id,
+            @RequestBody Documento documento) {
+
+        Documento docAtualizado = servico.atualizar(id, documento);
+        docAtualizado.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(docAtualizado);
+        
+        return ResponseEntity.ok(docAtualizado);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        servico.deletar(id);
+        return ResponseEntity.noContent().build();
     }
 }

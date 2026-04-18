@@ -5,34 +5,43 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.autobots.automanager.entidades.Cliente;
 import com.autobots.automanager.entidades.Documento;
-import com.autobots.automanager.modelo.DocumentoAtualizador;
+import com.autobots.automanager.repositorios.ClienteRepositorio;
 import com.autobots.automanager.repositorios.DocumentoRepositorio;
 
 @Service
 public class DocumentoServico {
 
     @Autowired
-    private DocumentoRepositorio repositorio;
+    private ClienteRepositorio clienteRepositorio;
 
-    private DocumentoAtualizador atualizador = new DocumentoAtualizador();
+    @Autowired
+    private DocumentoRepositorio repositorio;
 
     public Documento obterPorId(Long id) {
         return repositorio.findById(id)
                 .orElseThrow(() -> new RuntimeException("Documento não encontrado"));
     }
 
-    public List<Documento> listarTodos() {
-        return repositorio.findAll();
+    public List<Documento> listarPorCliente(Long clienteId) {
+        Cliente cliente = clienteRepositorio.findById(clienteId)
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        return cliente.getDocumentos();
     }
 
-    public Documento cadastrar(Documento documento) {
-        return repositorio.save(documento);
+    public Documento cadastrar(Long clienteId, Documento documento) {
+        Cliente cliente = clienteRepositorio.findById(clienteId)
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        cliente.getDocumentos().add(documento);
+        clienteRepositorio.save(cliente);
+        return documento;
     }
 
-    public Documento atualizar(Documento atualizacao) {
-        Documento documento = obterPorId(atualizacao.getId());
-        atualizador.atualizar(documento, atualizacao);
+    public Documento atualizar(Long id, Documento atualizacao) {
+        Documento documento = obterPorId(id);
+        documento.setNumero(atualizacao.getNumero());
+        documento.setTipo(atualizacao.getTipo());
         return repositorio.save(documento);
     }
 

@@ -1,47 +1,60 @@
 package com.autobots.automanager.controles;
 
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.autobots.automanager.entidades.Endereco;
+import com.autobots.automanager.modelo.AdicionadorLinkEndereco;
 import com.autobots.automanager.servicos.EnderecoServico;
 
 @RestController
-@RequestMapping("/endereco")
+@RequestMapping("/cliente/{clienteId}/endereco")
 public class EnderecoControle {
 
     @Autowired
     private EnderecoServico servico;
 
-    @GetMapping("/{id}")
-    public Endereco obterEndereco(@PathVariable Long id) {
-        return servico.obterPorId(id);
-    }
+    @Autowired
+    private AdicionadorLinkEndereco adicionadorLink;
 
     @GetMapping
-    public List<Endereco> listarEnderecos() {
-        return servico.listarTodos();
+    public ResponseEntity<Endereco> obter(@PathVariable Long clienteId) {
+        Endereco endereco = servico.obterPorCliente(clienteId);
+        if (endereco != null) {
+            endereco.setClienteId(clienteId);
+            adicionadorLink.adicionarLink(endereco);
+        }
+        return ResponseEntity.ok(endereco);
     }
 
-    @PostMapping("/cadastro")
-    public ResponseEntity<String> cadastrarEndereco(@RequestBody Endereco endereco) {
-        servico.cadastrar(endereco);
-        return new ResponseEntity<>("Endereço cadastrado", HttpStatus.CREATED);
+    @PostMapping
+    public ResponseEntity<Endereco> cadastrar(
+            @PathVariable Long clienteId,
+            @RequestBody Endereco endereco) {
+
+        Endereco novoEndereco = servico.cadastrar(clienteId, endereco);
+        novoEndereco.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(novoEndereco);
+        
+        return ResponseEntity.status(201).body(novoEndereco);
     }
 
-    @PutMapping("/atualizar")
-    public ResponseEntity<String> atualizarEndereco(@RequestBody Endereco atualizacao) {
-        servico.atualizar(atualizacao);
-        return new ResponseEntity<>("Endereço atualizado", HttpStatus.OK);
+    @PutMapping
+    public ResponseEntity<Endereco> atualizar(
+            @PathVariable Long clienteId,
+            @RequestBody Endereco endereco) {
+
+        Endereco enderecoAtualizado = servico.atualizar(clienteId, endereco);
+        enderecoAtualizado.setClienteId(clienteId);
+        adicionadorLink.adicionarLink(enderecoAtualizado);
+        
+        return ResponseEntity.ok(enderecoAtualizado);
     }
 
-    @DeleteMapping("/excluir")
-    public ResponseEntity<String> excluirEndereco(@RequestBody Endereco exclusao) {
-        servico.deletar(exclusao.getId());
-        return new ResponseEntity<>("Endereço excluído", HttpStatus.OK);
+    @DeleteMapping
+    public ResponseEntity<Void> deletar(@PathVariable Long clienteId) {
+        servico.deletar(clienteId);
+        return ResponseEntity.noContent().build();
     }
 }
